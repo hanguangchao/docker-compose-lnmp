@@ -1,0 +1,65 @@
+version: '3'
+services:
+    nginx:
+        image: nginx:1.16-alpine
+        # 端口映射
+        ports:
+            - "80:80"
+        # 依赖关系 先跑php
+        depends_on:
+            - "php"
+        # 数据卷
+        volumes:
+            - "$PWD/nginx/conf.d:/etc/nginx/conf.d"
+            - "$PWD/nginx/html:/var/www/html"
+        networks:
+            - app_net
+        # 容器名称
+        container_name: "compose-nginx"
+    php:
+        build: ./php
+        # image指定build Dockerfile生成镜像的名称
+        image: php:7.2-fpm
+        ports:
+            - "9000:9000"
+        volumes:
+            - "$PWD/nginx/html:/var/www/html"
+        networks:
+            - app_net
+        container_name: "compose-php"
+    mysql:
+        image: mysql:5.7
+        ports:
+            - "3306:3306"
+        # 环境变量
+        environment:
+            # mysql密码
+            - MYSQL_ROOT_PASSWORD=secret
+        volumes:
+            - "$PWD/mysql/data:/var/lib/mysql"
+        networks:
+            app_net:
+                # 固定子网ip，网段必须在子网络10.10.*.*
+                ipv4_address: 10.10.10.1
+        container_name: "compose-mysql"
+    redis:
+        image: redis:5.0.4-alpine
+        ports:
+          - "6379:6379"
+        volumes:
+          - $PWD/redis/data:/data
+        restart: always
+        entrypoint: ["redis-server"]
+        networks:
+            app_net:
+                # 固定子网ip，网段必须在子网络10.10.*.*
+                ipv4_address: 10.10.10.2
+        container_name: "compose-redis"
+networks:
+    # 配置docker network
+    app_net:
+        driver: bridge
+        ipam:
+            config:
+                # 子网络
+                - subnet: 10.10.0.0/16
